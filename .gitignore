@@ -31,3 +31,4 @@
 *.out
 *.app
 ImguiDX11Test/.vs
+/ImguiDX11Test/x64
