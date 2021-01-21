@@ -31,4 +31,6 @@ namespace JattoImGui {
 	static void CleanupRenderTarget();
 
 	static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+	static bool GetDesktopSize(int& x, int& y);
 }

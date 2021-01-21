@@ -97,6 +97,21 @@ LRESULT JattoImGui::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return ::DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
+bool JattoImGui::GetDesktopSize(int& x, int& y) {
+	RECT rect;
+	HWND hDesktop = GetDesktopWindow();
+	if (hDesktop == INVALID_HANDLE_VALUE || hDesktop == NULL) return false;
+	else
+	{
+		if (GetWindowRect(hDesktop, &rect))
+		{
+			x = rect.right; y = rect.bottom;
+			return true;
+		}
+		else { return false; }
+	}
+}
+
 int main(int, char**) {
 	WNDCLASSEX wc;
 	ZeroMemory(&wc, sizeof(WNDCLASSEX));
@@ -105,39 +120,44 @@ int main(int, char**) {
 	wc.lpfnWndProc = JattoImGui::WndProc;
 	wc.hInstance = GetModuleHandle(0);
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)RGB(0, 0, 0);
 	wc.lpszClassName = L"JattoImGui";
 	RegisterClassEx(&wc);
 
-	// ウィンドウオブジェクト生成
-	JattoImGui::hWindow = CreateWindowW(wc.lpszClassName, L"JattoImGui", WS_OVERLAPPEDWINDOW, 100, 100, 800, 800, NULL, NULL, wc.hInstance, NULL);
+	int x = 0 ; int y = 0;
+	if (!JattoImGui::GetDesktopSize(x, y))
+	{
+		std::cout << "Failed to get desktop solution.\n";
+		x = 1920; y = 1080;
+	}
 
-	// ImGui準備
+	JattoImGui::hWindow = CreateWindowEx(WS_EX_LAYERED | WS_EX_TOPMOST, wc.lpszClassName, L"JattoImGui", WS_POPUP, 0, 0, x, y, NULL, NULL, wc.hInstance, NULL);
+
+	SetLayeredWindowAttributes(JattoImGui::hWindow, 0, 255, ULW_COLORKEY | LWA_ALPHA);
+
 	if (JattoImGui::hWindow == NULL)
 	{
-		std::cout << "ウィンドウの作成に失敗しました．\n";
+		std::cout << "hWindow Object is Null.\n";
 		UnregisterClass(wc.lpszClassName, wc.hInstance);
 		std::exit(1);
 	}
 
 	if (!JattoImGui::CreateDevice(JattoImGui::hWindow))
 	{
-		std::cout << "デバイスの作成に失敗しました．\n";
+		std::cout << "CreateDevice() Failed.\n";
 		JattoImGui::CleanupDevice();
 		UnregisterClass(wc.lpszClassName, wc.hInstance);
 		std::exit(1);
 	}
 
-	// ウィンドウ描画
 	ShowWindow(JattoImGui::hWindow, SW_SHOW);
 	UpdateWindow(JattoImGui::hWindow);
 
-	// ImGuiバージョンチェックとコンテキスト生成
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	ImGui::StyleColorsLight();
 
-	// インタフェースのイニシャライズチェック
 	if (!ImGui_ImplWin32_Init(JattoImGui::hWindow))
 	{
 		std::cout << "ImGui_ImplWin32_Init () Failed.\n";
@@ -154,12 +174,12 @@ int main(int, char**) {
 		std::exit(1);
 	}
 
-	// iniファイルを生成しないように設定
 	io.IniFilename = NULL;
-	// インタフェースの日本語フォントに対応させるように設定
+
 	io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
 
 	float clear_color[4]  = { 0.45f, 0.55f, 0.60f, 1.00f };
+	float clear_color_transparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	float color_picker[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	MSG msg;
@@ -172,51 +192,42 @@ int main(int, char**) {
 			continue;
 		}
 
-		// 次に描画するフレームを生成
 		ImGui_ImplDX11_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		// 次に描画するImGuiコンテンツを設定
 		ImGui::SetNextWindowSize(ImVec2(500, 600), ImGuiCond_Once);
 		if (ImGui::Begin("JattoImGuiTest Title Bar", &JattoImGui::show_gui))
 		{
-			// テキスト
-			ImGui::Text(u8"ほげほげふがふが");
+			ImGui::Text(u8"HogehogeFugafuga");
 
-			// 区切り線
 			ImGui::Separator();
 
-			// 同じ行へのコンテンツの追加
-			ImGui::Text(u8"同じ行への ");
+			ImGui::Text(u8"Content Test");
 			ImGui::SameLine();
-			ImGui::Text(u8"コンテンツの追加テスト ");
+			ImGui::Text(u8"Content Test");
 
 			ImGui::Separator();
 
-			// チェックボックスエレメント
-			ImGui::Checkbox(u8"チェックボックスはこんな感じらしい", &JattoImGui::checkbox);
+			ImGui::Checkbox(u8"Checkbox Test", &JattoImGui::checkbox);
 			
 			ImGui::Separator();
 
-			// カラーピッカーエレメント
-			ImGui::ColorPicker4(u8"カラーピッカーテスト", color_picker);
+			ImGui::ColorPicker4(u8"Color Picker Test", color_picker);
 
 			ImGui::Text("App Average %.3f [ms/frame] (%.1 fps)", 1000.0f / ImGui::GetIO().Framerate);
 
 			ImGui::End();
 		}
 
-		// レンダラへ描画データを投げる
+
 		ImGui::Render();
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 		JattoImGui::pDeviceContext->OMSetRenderTargets(1, &JattoImGui::pRenderTargetView, NULL);
-		// 垂直同期設定(1st args)
-		JattoImGui::pSwapChain->Present(1, 0);
-		JattoImGui::pDeviceContext->ClearRenderTargetView(JattoImGui::pRenderTargetView, clear_color);
-	}
 
-	// 終了処理
+		JattoImGui::pSwapChain->Present(1, 0);
+		JattoImGui::pDeviceContext->ClearRenderTargetView(JattoImGui::pRenderTargetView, clear_color_transparent);
+	}
 
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
